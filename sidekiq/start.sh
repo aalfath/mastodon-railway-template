@@ -1,6 +1,7 @@
 #!/bin/sh
-# Mastodon on Railway: one start script for the web, sidekiq and media services.
-# Usage: start.sh web|sidekiq|media   (the image's working dir is /opt/mastodon)
+# Mastodon on Railway: start script for the web and sidekiq services.
+# Usage: start.sh web|sidekiq   (the image's working dir is /opt/mastodon)
+# web/start.sh and sidekiq/start.sh are identical copies: change both together.
 set -e
 cd /opt/mastodon
 role="$1"
@@ -13,7 +14,7 @@ export WEB_CONCURRENCY="${WEB_CONCURRENCY:-0}" MAX_THREADS="${MAX_THREADS:-5}"
 # 100.64.0.0/10, so every hop is trusted and Mastodon takes the client IP.
 export TRUSTED_PROXY_IP="${TRUSTED_PROXY_IP:-0.0.0.0/0,::/0}"
 # Media goes to the Railway bucket. It is private, so no ACL is sent and the
-# media service below serves the files on S3_ALIAS_HOST.
+# media service serves the files on S3_ALIAS_HOST.
 export S3_ENABLED="${S3_ENABLED:-true}" S3_PROTOCOL=https
 export S3_PERMISSION="${S3_PERMISSION-}"
 export S3_HOSTNAME="${S3_HOSTNAME:-$(echo "$S3_ENDPOINT" | sed -e 's#^[a-z]*://##' -e 's#/.*##')}"
@@ -31,7 +32,7 @@ fi
 
 # Web Push (VAPID) needs an EC P-256 key pair, which ${{secret()}} can't make.
 # Unless both keys are set, derive a stable pair from SECRET_KEY_BASE.
-if [ "$role" != media ] && { [ -z "$VAPID_PRIVATE_KEY" ] || [ -z "$VAPID_PUBLIC_KEY" ]; }; then
+if [ -z "$VAPID_PRIVATE_KEY" ] || [ -z "$VAPID_PUBLIC_KEY" ]; then
   eval "$(ruby -ropenssl -rbase64 -e '
     g = OpenSSL::PKey::EC::Group.new("prime256v1")
     d = OpenSSL::BN.new(OpenSSL::Digest::SHA256.hexdigest("mastodon-vapid:" + ENV.fetch("SECRET_KEY_BASE")), 16) % (g.order - 1) + 1
@@ -53,15 +54,12 @@ case "$role" in
     wait_for 'PG.connect(ENV.fetch("DATABASE_URL")).exec("select 1")' Postgres
     log "preparing the database (schema load on first start, migrations after upgrades)"
     bundle exec rails db:prepare
-    bundle exec rails runner /tmp/railway/bootstrap.rb
+    bundle exec rails runner /opt/railway/bootstrap.rb
     exec bundle exec puma -C config/puma.rb
     ;;
   sidekiq)
     wait_for 'PG.connect(ENV.fetch("DATABASE_URL")).exec("select 1 from accounts limit 1")' "the web service to load the schema"
     exec bundle exec sidekiq
-    ;;
-  media)
-    exec bundle exec puma -b "tcp://0.0.0.0:${PORT:-3000}" -w 0 -t 4:16 -e production /tmp/railway/media.ru
     ;;
   *) log "unknown role '$role'"; exit 64 ;;
 esac
