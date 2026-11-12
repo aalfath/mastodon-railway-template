@@ -1,5 +1,7 @@
 # Mastodon on Railway
 
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template/fnCrEa?utm_medium=integration&utm_source=button&utm_campaign=mastodon)
+
 Railway template for [Mastodon](https://github.com/mastodon/mastodon), the decentralised social network server.
 
 ## What it deploys

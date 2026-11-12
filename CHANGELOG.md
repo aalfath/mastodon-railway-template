@@ -10,3 +10,7 @@ Read the entry before you apply an update in Railway.
   - `ghcr.io/mastodon/mastodon-streaming:v4.7.5@sha256:3859d071e61a0ed2610a00e8048d89310235afb86e6923c0243bb4f9f4a31093`
 - Services `mastodon` (web), `sidekiq`, `streaming` and `media` build from this repo; Postgres, Redis and a bucket from Railway.
 - Creates the Owner account on the first start and keeps sign-ups closed.
+
+## Unreleased
+
+- README: Deploy on Railway button. No change to the running services.
